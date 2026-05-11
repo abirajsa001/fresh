@@ -174,8 +174,6 @@ export enum PaymentMethod {
   GuaranteedInvoice = "GuaranteedInvoice",
   /* GuaranteedSepa */
   GuaranteedSepa = "GuaranteedSepa",
-  /* Ideal */
-  Ideal = "ideal",
   /* TWINT */
   twint = "twint",
   /* SEPA */
