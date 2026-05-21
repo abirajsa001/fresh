@@ -95,13 +95,47 @@ export class Invoice extends BaseComponent {
   }
 
   private _getTemplate() {
-    return this.showPayButton
-      ? `
-    <div class="${styles.wrapper}">
-      <p>Pay easily with Invoice and transfer the shopping amount within the specified date.</p>
-      <button class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}" id="invoiceForm-paymentButton">Pay</button>
-    </div>
-    `
-      : "";
+
+    const locale = document.documentElement.lang || "en";
+  
+    const invoiceLabel =
+      locale.startsWith("de")
+        ? "Rechnung"
+        : "Invoice";
+  
+    const description =
+      locale.startsWith("de")
+        ? "Bezahlen Sie bequem per Rechnung und überweisen Sie den Betrag innerhalb der angegebenen Frist."
+        : "Pay easily with Invoice and transfer the shopping amount within the specified date.";
+  
+    return `
+      <div class="${styles.wrapper}">
+  
+        <label class="${styles.label}">
+          <input
+            type="radio"
+            name="novalnet-payment-method"
+            checked
+          />
+          ${invoiceLabel}
+        </label>
+  
+        <p>${description}</p>
+  
+        ${
+          this.showPayButton
+            ? `
+              <button
+                class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}"
+                id="invoiceForm-paymentButton"
+              >
+                ${locale.startsWith("de") ? "Bezahlen" : "Pay"}
+              </button>
+            `
+            : ""
+        }
+  
+      </div>
+    `;
   }
 }
