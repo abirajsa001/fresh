@@ -98,15 +98,9 @@ export class Invoice extends BaseComponent {
 
     const locale = document.documentElement.lang || "en";
   
-    const invoiceLabel =
-      locale.startsWith("de")
-        ? "Rechnung"
-        : "Invoice";
+    const invoiceLabel = "Invoice";
   
-    const description =
-      locale.startsWith("de")
-        ? "Bezahlen Sie bequem per Rechnung und überweisen Sie den Betrag innerhalb der angegebenen Frist."
-        : "Pay easily with Invoice and transfer the shopping amount within the specified date.";
+    const description = "Pay easily with Invoice and transfer the shopping amount within the specified date.";
   
     return `
       <div class="${styles.wrapper}">
@@ -129,7 +123,7 @@ export class Invoice extends BaseComponent {
                 class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}"
                 id="invoiceForm-paymentButton"
               >
-                ${locale.startsWith("de") ? "Bezahlen" : "Pay"}
+                "Pay"
               </button>
             `
             : ""
