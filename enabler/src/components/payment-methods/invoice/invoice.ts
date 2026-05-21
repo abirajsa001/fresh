@@ -31,25 +31,48 @@ export class Invoice extends BaseComponent {
   }
 
   mount(selector: string) {
-    document
-      .querySelector(selector)
-      .insertAdjacentHTML("afterbegin", this._getTemplate());
 
-      setTimeout(() => {
-        const labels = document.querySelectorAll('label');
-        labels.forEach((label) => {
-          const text = label.textContent?.trim().toLowerCase();
-          if (text?.includes('invoice')) {
-            label.textContent = 'Invoice';
-          }
-        });
-      }, 300);
-
+    const safeSelector =
+      selector.replace(/\|/g, '\\|');
+  
+    const container =
+      document.querySelector(safeSelector);
+  
+    if (!container) {
+      return;
+    }
+  
+    container.insertAdjacentHTML(
+      "afterbegin",
+      this._getTemplate()
+    );
+  
+    // label rename
+    setTimeout(() => {
+  
+      const labels =
+        document.querySelectorAll('label');
+  
+      labels.forEach((label) => {
+  
+        const text =
+          label.textContent?.trim().toLowerCase();
+  
+        if (text?.includes('invoice')) {
+          label.textContent = 'Invoice';
+        }
+      });
+  
+    }, 300);
+  
     if (this.showPayButton) {
+  
       document
         .querySelector("#invoiceForm-paymentButton")
-        .addEventListener("click", (e) => {
+        ?.addEventListener("click", (e) => {
+  
           e.preventDefault();
+  
           this.submit();
         });
     }
@@ -65,7 +88,7 @@ export class Invoice extends BaseComponent {
     try {
       const requestData: PaymentRequestSchemaDTO = {
         paymentMethod: {
-          type: this.paymentMethod,
+          type: "INVOICE",
         },
         paymentOutcome: PaymentOutcome.AUTHORIZED,
       };
@@ -103,33 +126,24 @@ export class Invoice extends BaseComponent {
     const description = "Pay easily with Invoice and transfer the shopping amount within the specified date.";
   
     return `
-      <div class="${styles.wrapper}">
+    <div class="${styles.wrapper}">
   
-        <label class="${styles.label}">
-          <input
-            type="radio"
-            name="novalnet-payment-method"
-            checked
-          />
-          ${invoiceLabel}
-        </label>
+      <p>${description}</p>
   
-        <p>${description}</p>
+      ${
+        this.showPayButton
+          ? `
+            <button
+              class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}"
+              id="invoiceForm-paymentButton"
+            >
+              Pay
+            </button>
+          `
+          : ""
+      }
   
-        ${
-          this.showPayButton
-            ? `
-              <button
-                class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}"
-                id="invoiceForm-paymentButton"
-              >
-                "Pay"
-              </button>
-            `
-            : ""
-        }
-  
-      </div>
-    `;
+    </div>
+  `;
   }
 }
