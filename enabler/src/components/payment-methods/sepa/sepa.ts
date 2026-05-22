@@ -108,58 +108,42 @@ export class Sepa extends BaseComponent {
   async submit() {
 
     this.sdk.init({
-      environment:
-        this.environment
+      environment: this.environment
     });
 
     const pathLocale =
-      window.location.pathname
-        .split("/")[1];
+      window.location.pathname.split("/")[1];
 
     const url =
-      new URL(
-        window.location.href
-      );
+      new URL(window.location.href);
 
     const baseSiteUrl =
       url.origin;
 
     try {
 
-      const accountHolderInput =
-        document.getElementById(
-          'nn_account_holder'
-        ) as HTMLInputElement;
-
-      const ibanInput =
-        document.getElementById(
-          'nn_sepa_account_no'
-        ) as HTMLInputElement;
-
-      const bicInput =
-        document.getElementById(
-          'nn_sepa_bic'
-        ) as HTMLInputElement;
-
       const accountHolder =
-        accountHolderInput
-          ?.value
-          .trim() ?? '';
+        (
+          document.getElementById(
+            'nn_account_holder'
+          ) as HTMLInputElement
+        )?.value?.trim();
 
       const iban =
-        ibanInput
-          ?.value
-          .trim() ?? '';
+        (
+          document.getElementById(
+            'nn_sepa_account_no'
+          ) as HTMLInputElement
+        )?.value?.trim();
 
       const bic =
-        bicInput
-          ?.value
-          .trim() ?? '';
+        (
+          document.getElementById(
+            'nn_sepa_bic'
+          ) as HTMLInputElement
+        )?.value?.trim();
 
-      if (
-        !accountHolder ||
-        !iban
-      ) {
+      if (!accountHolder || !iban) {
 
         this.onError(
           "Please fill all mandatory fields."
@@ -183,7 +167,7 @@ export class Sepa extends BaseComponent {
             iban,
 
           bic:
-            bic,
+            bic || "",
         },
 
         paymentOutcome:
@@ -234,9 +218,11 @@ export class Sepa extends BaseComponent {
           errorText
         );
 
-        throw new Error(
-          `HTTP error! status: ${response.status}`
+        this.onError(
+          "Payment request failed."
         );
+
+        return;
       }
 
       const data =
@@ -244,52 +230,52 @@ export class Sepa extends BaseComponent {
 
       console.log(
         'FULL SEPA RESPONSE:',
-        JSON.stringify(data)
+        data
       );
 
+      let paymentReference = "";
+
       if (
-        data &&
-        data.paymentReference
+        typeof data.paymentReference === "string"
       ) {
 
-        const paymentReference =
-          typeof data.paymentReference === 'string'
-            ? data.paymentReference
-            : data.paymentReference.id;
+        paymentReference =
+          data.paymentReference;
 
-        console.log(
-          'FINAL PAYMENT REFERENCE:',
-          paymentReference
-        );
+      } else if (
+        data.paymentReference?.id
+      ) {
 
-        if (!paymentReference) {
+        paymentReference =
+          data.paymentReference.id;
+      }
 
-          this.onError(
-            "Payment reference missing."
-          );
-
-          return;
-        }
-
-        this.onComplete?.({
-
-          isSuccess: true,
-
-          paymentReference:
-            paymentReference,
-        });
-
-      } else {
+      if (!paymentReference) {
 
         console.error(
-          'MISSING PAYMENT REFERENCE:',
+          'PAYMENT REFERENCE MISSING:',
           data
         );
 
         this.onError(
           "Payment reference missing."
         );
+
+        return;
       }
+
+      console.log(
+        'FINAL PAYMENT REFERENCE:',
+        paymentReference
+      );
+
+      this.onComplete?.({
+
+        isSuccess: true,
+
+        paymentReference:
+          paymentReference,
+      });
 
     } catch (e) {
 
@@ -299,7 +285,7 @@ export class Sepa extends BaseComponent {
       );
 
       this.onError(
-        "Some error occurred. Please try again."
+        "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
       );
     }
   }
@@ -336,31 +322,11 @@ export class Sepa extends BaseComponent {
 
   private _getTemplate() {
 
-    const payButton =
-      this.showPayButton
-
-      ? `
-        <button
-          class="${buttonStyles.button}
-          ${buttonStyles.fullWidth}
-          ${styles.submitButton}"
-
-          id="purchaseOrderForm-paymentButton"
-        >
-          Pay
-        </button>
-      `
-
-      : "";
+    const locale =
+      document.documentElement.lang || "en";
 
     return `
-      <div
-        style="
-          width:100%;
-          display:flex;
-          flex-direction:column;
-        "
-      >
+      <div class="${styles.wrapper}">
 
         <form
           id="nn_sepa_form"
@@ -373,29 +339,14 @@ export class Sepa extends BaseComponent {
           "
         >
 
-          <!-- Account Holder -->
-          <div
-            style="
-              display:flex;
-              flex-direction:column;
-              width:100%;
-            "
-          >
+          <div>
 
-            <label
-              for="nn_account_holder"
-
-              style="
-                font-size:14px;
-                font-weight:600;
-                color:#333;
-                margin-bottom:6px;
-              "
-            >
-              Account Holder
-              <span style="color:red;">
-                *
-              </span>
+            <label for="nn_account_holder">
+              ${
+                locale.startsWith("de")
+                  ? "Kontoinhaber"
+                  : "Account Holder"
+              } *
             </label>
 
             <input
@@ -404,38 +355,18 @@ export class Sepa extends BaseComponent {
               name="nn_account_holder"
 
               style="
-                padding:12px 14px;
-                border:1.5px solid #d4d4d4;
-                border-radius:6px;
-                font-size:15px;
+                width:100%;
+                padding:12px;
+                margin-top:6px;
               "
             />
 
           </div>
 
-          <!-- IBAN -->
-          <div
-            style="
-              display:flex;
-              flex-direction:column;
-              width:100%;
-            "
-          >
+          <div>
 
-            <label
-              for="nn_sepa_account_no"
-
-              style="
-                font-size:14px;
-                font-weight:600;
-                color:#333;
-                margin-bottom:6px;
-              "
-            >
-              IBAN
-              <span style="color:red;">
-                *
-              </span>
+            <label for="nn_sepa_account_no">
+              IBAN *
             </label>
 
             <input
@@ -467,37 +398,25 @@ export class Sepa extends BaseComponent {
               "
 
               style="
-                padding:12px 14px;
-                border:1.5px solid #d4d4d4;
-                border-radius:6px;
-                font-size:15px;
+                width:100%;
+                padding:12px;
+                margin-top:6px;
                 text-transform:uppercase;
               "
             />
 
           </div>
 
-          <!-- BIC -->
           <div
             id="bic_div"
 
             style="
               display:none;
               flex-direction:column;
-              width:100%;
             "
           >
 
-            <label
-              for="nn_sepa_bic"
-
-              style="
-                font-size:14px;
-                font-weight:600;
-                color:#333;
-                margin-bottom:6px;
-              "
-            >
+            <label for="nn_sepa_bic">
               BIC
             </label>
 
@@ -521,16 +440,33 @@ export class Sepa extends BaseComponent {
               "
 
               style="
-                padding:12px 14px;
-                border:1.5px solid #d4d4d4;
-                border-radius:6px;
-                font-size:15px;
+                width:100%;
+                padding:12px;
+                margin-top:6px;
               "
             />
 
           </div>
 
-          ${payButton}
+          ${
+            this.showPayButton
+              ? `
+              <button
+                class="${buttonStyles.button}
+                ${buttonStyles.fullWidth}
+                ${styles.submitButton}"
+
+                id="purchaseOrderForm-paymentButton"
+              >
+                ${
+                  locale.startsWith("de")
+                    ? "Bezahlen"
+                    : "Pay"
+                }
+              </button>
+              `
+              : ""
+          }
 
         </form>
 
