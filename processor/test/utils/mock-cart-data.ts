@@ -6,6 +6,7 @@ export const mockGetCartResult = () => {
   const mockGetCartResult: Cart = {
     id: cartId,
     version: 1,
+    priceRoundingMode: 'HalfEven',
     lineItems: [lineItem],
     customLineItems: [customLineItem],
     totalPrice: {
