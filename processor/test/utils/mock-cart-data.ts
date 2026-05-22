@@ -17,9 +17,27 @@ export const mockGetCartResult = () => {
 
     version: 1,
 
+    createdAt: '2024-01-01T00:00:00Z',
+
+    lastModifiedAt: '2024-01-01T00:00:00Z',
+
     priceRoundingMode: 'HalfEven',
 
     taxRoundingMode: 'HalfEven',
+
+    taxMode: 'ExternalAmount',
+
+    taxCalculationMode: 'LineItemLevel',
+
+    cartState: 'Ordered',
+
+    origin: 'Customer',
+
+    shippingMode: 'Single',
+
+    inventoryMode: 'ReserveOnOrder',
+
+    deleteDaysAfterLastModification: 30,
 
     lineItems: [lineItem],
 
@@ -32,15 +50,9 @@ export const mockGetCartResult = () => {
       fractionDigits: 2,
     },
 
-    cartState: 'Ordered',
-
-    origin: 'Customer',
-
-    taxMode: 'ExternalAmount',
-
-    taxCalculationMode: 'LineItemLevel',
-
     shipping: [],
+
+    shippingInfo: shippingInfo,
 
     discountCodes: [],
 
@@ -49,16 +61,6 @@ export const mockGetCartResult = () => {
     refusedGifts: [],
 
     itemShippingAddresses: [],
-
-    inventoryMode: 'ReserveOnOrder',
-
-    shippingMode: 'Single',
-
-    shippingInfo: shippingInfo,
-
-    createdAt: '2024-01-01T00:00:00Z',
-
-    lastModifiedAt: '2024-01-01T00:00:00Z',
   };
 
   return mockGetCartResult;
@@ -81,6 +83,7 @@ const lineItem: LineItem = {
 
   price: {
     id: 'price-id-1',
+
     value: {
       type: 'centPrecision',
       currencyCode: 'USD',
@@ -157,6 +160,13 @@ const shippingInfo: ShippingInfo = {
 
   shippingMethodName: 'shippingMethodName1',
 
+  shippingMethod: {
+    typeId: 'shipping-method',
+    id: 'shipping-method-id',
+  },
+
+  shippingMethodState: 'MatchesCart',
+
   price: {
     type: 'centPrecision',
     currencyCode: 'USD',
@@ -174,6 +184,4 @@ const shippingInfo: ShippingInfo = {
 
     tiers: [],
   },
-
-  shippingMethodState: 'MatchesCart',
 };
