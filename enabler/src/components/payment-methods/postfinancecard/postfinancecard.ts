@@ -17,7 +17,7 @@ import {
 
 import { BaseOptions } from "../../../payment-enabler/novalnet-payment-enabler";
 
-export class PostfinanceBuilder
+export class PostfinancecardBuilder
   implements PaymentComponentBuilder {
 
   public componentHasSubmit = true;
