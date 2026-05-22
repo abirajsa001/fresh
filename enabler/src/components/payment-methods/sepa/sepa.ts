@@ -58,7 +58,6 @@ export class Sepa extends BaseComponent {
 
   mount(selector: string) {
 
-    // Escape selector safely
     const safeSelector =
       selector.replace(/\|/g, '\\|');
 
@@ -82,45 +81,7 @@ export class Sepa extends BaseComponent {
       this._getTemplate()
     );
 
-    // Load Novalnet script dynamically
-    if (!(window as any).NovalnetUtility) {
-
-      const script =
-        document.createElement('script');
-
-      script.src =
-        'https://cdn.novalnet.de/js/v2/NovalnetUtility.js';
-
-      script.async = true;
-
-      document.body.appendChild(
-        script
-      );
-    }
-
-    // Update storefront payment label
-    setTimeout(() => {
-
-      const labels =
-        document.querySelectorAll('label');
-
-      labels.forEach((label) => {
-
-        const text =
-          label.textContent
-            ?.trim()
-            .toLowerCase();
-
-        if (
-          text?.includes('sepa')
-        ) {
-
-          label.textContent =
-            'Direct Debit SEPA';
-        }
-      });
-
-    }, 300);
+    this._loadNovalnetScript();
 
     if (this.showPayButton) {
 
@@ -236,7 +197,7 @@ export class Sepa extends BaseComponent {
       };
 
       console.log(
-        'SEPA Request:',
+        'SEPA REQUEST:',
         requestData
       );
 
@@ -263,14 +224,13 @@ export class Sepa extends BaseComponent {
           }
         );
 
-      // IMPORTANT
       if (!response.ok) {
 
         const errorText =
           await response.text();
 
         console.error(
-          'SEPA HTTP Error:',
+          'SEPA HTTP ERROR:',
           errorText
         );
 
@@ -283,8 +243,8 @@ export class Sepa extends BaseComponent {
         await response.json();
 
       console.log(
-        'SEPA Response:',
-        data
+        'FULL SEPA RESPONSE:',
+        JSON.stringify(data)
       );
 
       if (
@@ -292,18 +252,37 @@ export class Sepa extends BaseComponent {
         data.paymentReference
       ) {
 
+        const paymentReference =
+          typeof data.paymentReference === 'string'
+            ? data.paymentReference
+            : data.paymentReference.id;
+
+        console.log(
+          'FINAL PAYMENT REFERENCE:',
+          paymentReference
+        );
+
+        if (!paymentReference) {
+
+          this.onError(
+            "Payment reference missing."
+          );
+
+          return;
+        }
+
         this.onComplete?.({
 
           isSuccess: true,
 
           paymentReference:
-            data.paymentReference,
+            paymentReference,
         });
 
       } else {
 
         console.error(
-          'Missing paymentReference:',
+          'MISSING PAYMENT REFERENCE:',
           data
         );
 
@@ -315,7 +294,7 @@ export class Sepa extends BaseComponent {
     } catch (e) {
 
       console.error(
-        'SEPA payment error:',
+        'SEPA PAYMENT ERROR:',
         e
       );
 
@@ -323,6 +302,36 @@ export class Sepa extends BaseComponent {
         "Some error occurred. Please try again."
       );
     }
+  }
+
+  private _loadNovalnetScript() {
+
+    if (
+      (window as any).NovalnetUtility
+    ) {
+      return;
+    }
+
+    const existingScript =
+      document.querySelector(
+        'script[src="https://cdn.novalnet.de/js/v2/NovalnetUtility.js"]'
+      );
+
+    if (existingScript) {
+      return;
+    }
+
+    const script =
+      document.createElement('script');
+
+    script.src =
+      'https://cdn.novalnet.de/js/v2/NovalnetUtility.js';
+
+    script.async = true;
+
+    document.body.appendChild(
+      script
+    );
   }
 
   private _getTemplate() {
@@ -490,9 +499,6 @@ export class Sepa extends BaseComponent {
               "
             >
               BIC
-              <span style="color:red;">
-                *
-              </span>
             </label>
 
             <input
