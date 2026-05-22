@@ -30,18 +30,28 @@ export class Prepayment extends BaseComponent {
     this.showPayButton = componentOptions?.showPayButton ?? false;
   }
 
-  mount(selector: string) {
-    document
-      .querySelector(selector)
-      .insertAdjacentHTML("afterbegin", this._getTemplate());
 
+  mount(selector: string) {
+
+    // Escape selector safely
+    const safeSelector = selector.replace(/\|/g, '\\|');
+    const container = document.querySelector(safeSelector);
+    if (!container) {
+      console.error('Container not found:', safeSelector);
+      return;
+    }
+
+    container.insertAdjacentHTML("beforeend",this._getTemplate());
     if (this.showPayButton) {
-      document
-        .querySelector("#purchaseOrderForm-paymentButton")
-        .addEventListener("click", (e) => {
+      const button = document.querySelector("#purchaseOrderForm-paymentButton");
+      if (button) {
+        button.addEventListener("click",
+          (e) => {
           e.preventDefault();
           this.submit();
-        });
+          }
+        );
+      }
     }
   }
 
@@ -88,13 +98,16 @@ export class Prepayment extends BaseComponent {
   }
 
   private _getTemplate() {
+    const locale = document.documentElement.lang || "en";
+    const description = locale.startsWith("de") ? "Bezahlen Sie ganz einfach per Vorauskasse und überweisen Sie den Kaufbetrag innerhalb der angegebenen Frist." : "Pay easily with Prepayment and transfer the shopping amount within the specified date.";
     return this.showPayButton
-      ? `
-    <div class="${styles.wrapper}">
-      <p>Pay easily with Prepayment and transfer the shopping amount within the specified date.</p>
-      <button class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}" id="purchaseOrderForm-paymentButton">Pay</button>
-    </div>
-    `
+      ? `<div class="${styles.wrapper}">
+        <p> ${description} </p>
+        <button class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}" id="purchaseOrderForm-paymentButton">
+          ${locale.startsWith("de") ? "Bezahlen" : "Pay"}
+        </button>
+      </div>`
       : "";
   }
+
 }

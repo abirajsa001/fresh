@@ -59,46 +59,21 @@ export class Invoice extends BaseComponent {
   mount(selector: string) {
 
     // Escape selector safely
-    const safeSelector =
-      selector.replace(/\|/g, '\\|');
-
-    const container =
-      document.querySelector(safeSelector);
-
+    const safeSelector = selector.replace(/\|/g, '\\|');
+    const container = document.querySelector(safeSelector);
     if (!container) {
-
-      console.error(
-        'Container not found:',
-        safeSelector
-      );
-
+      console.error('Container not found:', safeSelector);
       return;
     }
 
-    // Important:
-    // Use beforeend instead of afterbegin
-    // to avoid radio button disappearing
-    container.insertAdjacentHTML(
-      "beforeend",
-      this._getTemplate()
-    );
-
+    container.insertAdjacentHTML("beforeend",this._getTemplate());
     if (this.showPayButton) {
-
-      const button =
-        document.querySelector(
-          "#invoiceForm-paymentButton"
-        );
-
+      const button = document.querySelector("#invoiceForm-paymentButton");
       if (button) {
-
-        button.addEventListener(
-          "click",
+        button.addEventListener("click",
           (e) => {
-
-            e.preventDefault();
-
-            this.submit();
+          e.preventDefault();
+          this.submit();
           }
         );
       }
@@ -144,11 +119,7 @@ export class Invoice extends BaseComponent {
         {
 
           method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
+          headers: {"Content-Type":"application/json",
             "X-Session-Id":
               this.sessionId,
           },
@@ -160,25 +131,13 @@ export class Invoice extends BaseComponent {
       );
 
       if (!response.ok) {
-
-        const errorText =
-          await response.text();
-
-        console.error(
-          'HTTP error response:',
-          errorText
-        );
-
-        throw new Error(
-          `HTTP error! status: ${response.status}`
-        );
+        const errorText = await response.text();
+        console.error('HTTP error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
       const data =
         await response.json();
-
       if (data.paymentReference) {
-
         this.onComplete &&
           this.onComplete({
             isSuccess: true,
@@ -187,56 +146,24 @@ export class Invoice extends BaseComponent {
           });
 
       } else {
-
-        this.onError(
-          "Some error occurred. Please try again."
-        );
+        this.onError("Some error occurred. Please try again.");
       }
-
     } catch (e) {
-
-      console.error(
-        'Invoice payment error:',
-        e
-      );
-
-      this.onError(
-        "Some error occurred. Please try again."
-      );
+      console.error('Invoice payment error:',e);
+      this.onError("Some error occurred. Please try again.");
     }
   }
 
   private _getTemplate() {
-
-    const locale =
-      document.documentElement.lang || "en";
-
-    const description =
-      locale.startsWith("de")
-        ? "Bezahlen Sie bequem per Rechnung und überweisen Sie den Betrag innerhalb der angegebenen Frist."
-        : "Pay easily with Invoice and transfer the shopping amount within the specified date.";
-
+    const locale = document.documentElement.lang || "en";
+    const description = locale.startsWith("de") ? "Bezahlen Sie bequem per Rechnung und überweisen Sie den Betrag innerhalb der angegebenen Frist." : "Pay easily with Invoice and transfer the shopping amount within the specified date.";
     return this.showPayButton
-      ? `
-      <div class="${styles.wrapper}">
-
-        <p>
-          ${description}
-        </p>
-
-        <button
-          class="${buttonStyles.button}
-          ${buttonStyles.fullWidth}
-          ${styles.submitButton}"
-          id="invoiceForm-paymentButton"
-        >
-          ${locale.startsWith("de")
-            ? "Bezahlen"
-            : "Pay"}
+      ? `<div class="${styles.wrapper}">
+        <p> ${description} </p>
+        <button class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}" id="invoiceForm-paymentButton">
+          ${locale.startsWith("de") ? "Bezahlen" : "Pay"}
         </button>
-
-      </div>
-      `
+      </div>`
       : "";
   }
 }
