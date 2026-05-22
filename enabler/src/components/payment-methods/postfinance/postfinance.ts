@@ -4,98 +4,223 @@ import {
   PaymentComponentBuilder,
   PaymentMethod
 } from '../../../payment-enabler/payment-enabler';
+
 import { BaseComponent } from "../../base";
+
 import styles from '../../../style/style.module.scss';
 import buttonStyles from "../../../style/button.module.scss";
+
 import {
   PaymentOutcome,
   PaymentRequestSchemaDTO,
 } from "../../../dtos/novalnet-payment.dto";
+
 import { BaseOptions } from "../../../payment-enabler/novalnet-payment-enabler";
-import { checkoutFlow } from '@commercetools/checkout-browser-sdk';
 
-export class PostfinanceBuilder implements PaymentComponentBuilder {
+export class PostfinanceBuilder
+  implements PaymentComponentBuilder {
+
   public componentHasSubmit = true;
-  constructor(private baseOptions: BaseOptions) {}
 
-  build(config: ComponentOptions): PaymentComponent {
-    return new Postfinance(this.baseOptions, config);
+  constructor(
+    private baseOptions: BaseOptions
+  ) {}
+
+  build(
+    config: ComponentOptions
+  ): PaymentComponent {
+
+    return new Postfinance(
+      this.baseOptions,
+      config
+    );
   }
 }
- 
+
 export class Postfinance extends BaseComponent {
+
   private showPayButton: boolean;
 
-  constructor(baseOptions: BaseOptions, componentOptions: ComponentOptions) {
-    super(PaymentMethod.postfinance, baseOptions, componentOptions);
-    this.showPayButton = componentOptions?.showPayButton ?? false;
+  constructor(
+    baseOptions: BaseOptions,
+    componentOptions: ComponentOptions
+  ) {
+
+    super(
+      PaymentMethod.postfinance,
+      baseOptions,
+      componentOptions
+    );
+
+    this.showPayButton =
+      componentOptions?.showPayButton ?? false;
   }
 
   mount(selector: string) {
-    document
-      .querySelector(selector)
-      .insertAdjacentHTML("afterbegin", this._getTemplate());
+
+    // Escape selector safely
+    const safeSelector =
+      selector.replace(/\|/g, '\\|');
+
+    const container =
+      document.querySelector(safeSelector);
+
+    if (!container) {
+
+      console.error(
+        'Container not found:',
+        safeSelector
+      );
+
+      return;
+    }
+
+    container.insertAdjacentHTML(
+      "beforeend",
+      this._getTemplate()
+    );
 
     if (this.showPayButton) {
-      document
-        .querySelector("#purchaseOrderForm-paymentButton")
-        .addEventListener("click", (e) => {
-          e.preventDefault();
-          this.submit();
-        });
+
+      const button =
+        document.querySelector(
+          "#purchaseOrderForm-paymentButton"
+        );
+
+      if (button) {
+
+        button.addEventListener(
+          "click",
+          (e) => {
+
+            e.preventDefault();
+
+            this.submit();
+          }
+        );
+      }
     }
   }
 
   async submit() {
-    this.sdk.init({ environment: this.environment });
-    const pathLocale = window.location.pathname.split("/")[1];
-    const url = new URL(window.location.href);
-    const baseSiteUrl = url.origin;
+
+    this.sdk.init({
+      environment: this.environment
+    });
+
+    const pathLocale =
+      window.location.pathname.split("/")[1];
+
+    const url =
+      new URL(window.location.href);
+
+    const baseSiteUrl =
+      url.origin;
 
     try {
-      const requestData: PaymentRequestSchemaDTO = {
+
+      const requestData:
+        PaymentRequestSchemaDTO = {
+
         paymentMethod: {
-          type: 'POSTFINANCE',
+          type: "POSTFINANCE_EFINANCE",
         },
-        paymentOutcome: PaymentOutcome.AUTHORIZED,
-        lang: pathLocale ?? 'de',
-        path: baseSiteUrl,
+
+        paymentOutcome:
+          PaymentOutcome.AUTHORIZED,
+
+        lang:
+          pathLocale ?? 'de',
+
+        path:
+          baseSiteUrl,
       };
-      const response = await fetch(this.processorUrl + "/redirectPayment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Id": this.sessionId,
-        },
-        body: JSON.stringify(requestData),
-      });
+
+      const response = await fetch(
+        this.processorUrl + "/redirectPayment",
+        {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            "X-Session-Id":
+              this.sessionId,
+          },
+
+          body: JSON.stringify(
+            requestData
+          ),
+        }
+      );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}`);
+
+        const errorText =
+          await response.text();
+
+        console.error(
+          'HTTP error response:',
+          errorText
+        );
+
+        throw new Error(
+          `HTTP error! status: ${response.status}`
+        );
       }
-      
-      const data = await response.json();
-      window.location.href = data.txnSecret;
+
+      const data =
+        await response.json();
+
+      window.location.href =
+        data.txnSecret;
 
     } catch (e) {
-      console.error('Error details:', {
-        message: e.message,
-        stack: e.stack,
-        name: e.name
-      });
-      this.onError("Some error occurred. Please try again.");
+
+      console.error(
+        'PostFinance E-Finance payment error:',
+        e
+      );
+
+      this.onError(
+        "Some error occurred. Please try again."
+      );
     }
   }
 
   private _getTemplate() {
+
+    const locale =
+      document.documentElement.lang || "en";
+
+    const description =
+      locale.startsWith("de")
+        ? "Bezahlen Sie bequem mit PostFinance E-Finance."
+        : "Pay easily with PostFinance E-Finance.";
+
     return this.showPayButton
       ? `
-    <div class="${styles.wrapper}">
-      <p>Pay easily with Postfinance and transfer the shopping amount within the specified date.</p>
-      <button class="${buttonStyles.button} ${buttonStyles.fullWidth} ${styles.submitButton}" id="purchaseOrderForm-paymentButton">Pay Now</button>
-    </div>
-    `
+      <div class="${styles.wrapper}">
+
+        <p>
+          ${description}
+        </p>
+
+        <button
+          class="${buttonStyles.button}
+          ${buttonStyles.fullWidth}
+          ${styles.submitButton}"
+          id="purchaseOrderForm-paymentButton"
+        >
+          ${locale.startsWith("de")
+            ? "Bezahlen"
+            : "Pay Now"}
+        </button>
+
+      </div>
+      `
       : "";
   }
 }
