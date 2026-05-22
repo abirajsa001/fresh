@@ -42,6 +42,8 @@ export class Onlinebanktransfer
 
   private showPayButton: boolean;
 
+  private isSubmitting = false;
+
   constructor(
     baseOptions: BaseOptions,
     componentOptions: ComponentOptions
@@ -59,7 +61,7 @@ export class Onlinebanktransfer
 
   mount(selector: string) {
 
-    // Escape selector safely
+    // FIX storefront selector issue
     const safeSelector =
       selector.replace(/\|/g, '\\|');
 
@@ -76,6 +78,15 @@ export class Onlinebanktransfer
       return;
     }
 
+    // Prevent duplicate render
+    if (
+      document.getElementById(
+        "novalnet-onlinebanktransfer-wrapper"
+      )
+    ) {
+      return;
+    }
+
     container.insertAdjacentHTML(
       "beforeend",
       this._getTemplate()
@@ -85,18 +96,31 @@ export class Onlinebanktransfer
 
       const button =
         document.querySelector(
-          "#purchaseOrderForm-paymentButton"
-        );
+          "#onlinebanktransfer-paymentButton"
+        ) as HTMLButtonElement | null;
 
       if (button) {
 
         button.addEventListener(
           "click",
-          (e) => {
+          async (e) => {
 
             e.preventDefault();
 
-            this.submit();
+            // Prevent double submit
+            if (this.isSubmitting) {
+              return;
+            }
+
+            this.isSubmitting = true;
+
+            button.disabled = true;
+
+            await this.submit();
+
+            button.disabled = false;
+
+            this.isSubmitting = false;
           }
         );
       }
@@ -175,8 +199,24 @@ export class Onlinebanktransfer
       const data =
         await response.json();
 
-      window.location.href =
-        data.txnSecret;
+      if (
+        data?.txnSecret
+      ) {
+
+        window.location.href =
+          data.txnSecret;
+
+      } else {
+
+        console.error(
+          'Missing txnSecret:',
+          data
+        );
+
+        this.onError(
+          "Payment redirect failed."
+        );
+      }
 
     } catch (e) {
 
@@ -201,28 +241,39 @@ export class Onlinebanktransfer
         ? "Bezahlen Sie bequem per Online-Überweisung."
         : "Pay easily with Online Bank Transfer.";
 
-    return this.showPayButton
-      ? `
-      <div class="${styles.wrapper}">
+    return `
+      <div
+        id="novalnet-onlinebanktransfer-wrapper"
+        class="${styles.wrapper}"
+      >
 
         <p>
           ${description}
         </p>
 
-        <button
-          class="${buttonStyles.button}
-          ${buttonStyles.fullWidth}
-          ${styles.submitButton}"
+        ${
+          this.showPayButton
+            ? `
+            <button
+              class="${buttonStyles.button}
+              ${buttonStyles.fullWidth}
+              ${styles.submitButton}"
 
-          id="purchaseOrderForm-paymentButton"
-        >
-          ${locale.startsWith("de")
-            ? "Bezahlen"
-            : "Pay Now"}
-        </button>
+              type="button"
+
+              id="onlinebanktransfer-paymentButton"
+            >
+              ${
+                locale.startsWith("de")
+                  ? "Bezahlen"
+                  : "Pay Now"
+              }
+            </button>
+            `
+            : ""
+        }
 
       </div>
-      `
-      : "";
+    `;
   }
 }

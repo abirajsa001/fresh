@@ -58,7 +58,6 @@ export class Sepa extends BaseComponent {
 
   mount(selector: string) {
 
-    // Escape selector safely
     const safeSelector =
       selector.replace(/\|/g, '\\|');
 
@@ -75,12 +74,11 @@ export class Sepa extends BaseComponent {
       return;
     }
 
-    container.insertAdjacentHTML(
-      "beforeend",
-      this._getTemplate()
-    );
+    // IMPORTANT FIX
+    container.innerHTML =
+      this._getTemplate();
 
-    // Load Novalnet utility script
+    // Load Novalnet script once
     if (!(window as any).NovalnetUtility) {
 
       const script =
@@ -94,10 +92,98 @@ export class Sepa extends BaseComponent {
       document.body.appendChild(script);
     }
 
+    // Attach IBAN formatter safely
+    setTimeout(() => {
+
+      const NovalnetUtility =
+        (window as any).NovalnetUtility;
+
+      const ibanInput =
+        document.getElementById(
+          'sepaForm-iban'
+        ) as HTMLInputElement;
+
+      const bicWrapper =
+        document.getElementById(
+          'sepa-bic-wrapper'
+        );
+
+      const bicInput =
+        document.getElementById(
+          'sepaForm-bic'
+        ) as HTMLInputElement;
+
+      if (
+        ibanInput &&
+        NovalnetUtility
+      ) {
+
+        ibanInput.addEventListener(
+          'keyup',
+          (event) => {
+
+            NovalnetUtility.formatIban(
+              event,
+              'sepa-bic-wrapper'
+            );
+          }
+        );
+
+        ibanInput.addEventListener(
+          'keypress',
+          (event) => {
+
+            NovalnetUtility.checkIban(
+              event,
+              'sepa-bic-wrapper'
+            );
+          }
+        );
+
+        ibanInput.addEventListener(
+          'change',
+          (event) => {
+
+            NovalnetUtility.formatIban(
+              event,
+              'sepa-bic-wrapper'
+            );
+          }
+        );
+      }
+
+      if (
+        bicInput &&
+        NovalnetUtility
+      ) {
+
+        bicInput.addEventListener(
+          'keypress',
+          (event) => {
+
+            NovalnetUtility.formatBic(
+              event
+            );
+          }
+        );
+
+        bicInput.addEventListener(
+          'change',
+          (event) => {
+
+            NovalnetUtility.formatBic(
+              event
+            );
+          }
+        );
+      }
+
+    }, 500);
+
     if (this.showPayButton) {
 
       const button =
-        document.querySelector(
+        container.querySelector(
           "#sepaForm-paymentButton"
         );
 
@@ -183,6 +269,11 @@ export class Sepa extends BaseComponent {
           baseSiteUrl,
       };
 
+      console.log(
+        'SEPA Request:',
+        requestData
+      );
+
       const response = await fetch(
         this.processorUrl + "/directPayment",
         {
@@ -221,20 +312,42 @@ export class Sepa extends BaseComponent {
       const data =
         await response.json();
 
-      if (data.paymentReference) {
+      console.log(
+        'SEPA Response:',
+        data
+      );
 
-        this.onComplete &&
-          this.onComplete({
-            isSuccess: true,
+      if (
+        data &&
+        data.paymentReference
+      ) {
 
-            paymentReference:
-              data.paymentReference,
-          });
+        const paymentReference =
+          typeof data.paymentReference === 'string'
+            ? data.paymentReference
+            : data.paymentReference.id;
+
+        console.log(
+          'Calling onComplete with:',
+          paymentReference
+        );
+
+        this.onComplete?.({
+          isSuccess: true,
+
+          paymentReference:
+            paymentReference,
+        });
 
       } else {
 
+        console.error(
+          'Missing paymentReference:',
+          data
+        );
+
         this.onError(
-          "Some error occurred. Please try again."
+          "Payment reference missing."
         );
       }
 
@@ -282,6 +395,7 @@ export class Sepa extends BaseComponent {
             type="text"
             id="sepaForm-accountHolder"
             name="accountHolder"
+
             style="
               width:100%;
               padding:12px;
@@ -303,27 +417,6 @@ export class Sepa extends BaseComponent {
             id="sepaForm-iban"
             name="iban"
 
-            onkeypress="
-              return NovalnetUtility.checkIban(
-                event,
-                'sepa-bic-wrapper'
-              );
-            "
-
-            onkeyup="
-              return NovalnetUtility.formatIban(
-                event,
-                'sepa-bic-wrapper'
-              );
-            "
-
-            onchange="
-              return NovalnetUtility.formatIban(
-                event,
-                'sepa-bic-wrapper'
-              );
-            "
-
             style="
               width:100%;
               padding:12px;
@@ -337,6 +430,7 @@ export class Sepa extends BaseComponent {
         <!-- BIC -->
         <div
           id="sepa-bic-wrapper"
+
           style="
             display:none;
             flex-direction:column;
@@ -351,14 +445,6 @@ export class Sepa extends BaseComponent {
             type="text"
             id="sepaForm-bic"
             name="bic"
-
-            onkeypress="
-              return NovalnetUtility.formatBic(event);
-            "
-
-            onchange="
-              return NovalnetUtility.formatBic(event);
-            "
 
             style="
               width:100%;
@@ -376,6 +462,7 @@ export class Sepa extends BaseComponent {
               class="${buttonStyles.button}
               ${buttonStyles.fullWidth}
               ${styles.submitButton}"
+
               id="sepaForm-paymentButton"
             >
               ${

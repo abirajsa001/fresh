@@ -17,7 +17,8 @@ import {
 
 import { BaseOptions } from "../../../payment-enabler/novalnet-payment-enabler";
 
-export class AchBuilder implements PaymentComponentBuilder {
+export class AchBuilder
+  implements PaymentComponentBuilder {
 
   public componentHasSubmit = true;
 
@@ -57,7 +58,6 @@ export class Ach extends BaseComponent {
 
   mount(selector: string) {
 
-    // Escape selector safely
     const safeSelector =
       selector.replace(/\|/g, '\\|');
 
@@ -74,15 +74,14 @@ export class Ach extends BaseComponent {
       return;
     }
 
-    container.insertAdjacentHTML(
-      "beforeend",
-      this._getTemplate()
-    );
+    // IMPORTANT FIX
+    container.innerHTML =
+      this._getTemplate();
 
     if (this.showPayButton) {
 
       const button =
-        document.querySelector(
+        container.querySelector(
           "#achForm-paymentButton"
         );
 
@@ -134,13 +133,27 @@ export class Ach extends BaseComponent {
         ) as HTMLInputElement;
 
       const accountHolder =
-        accountHolderInput?.value.trim();
+        accountHolderInput?.value.trim() ?? '';
 
       const accountNumber =
-        accountNumberInput?.value.trim();
+        accountNumberInput?.value.trim() ?? '';
 
       const routingNumber =
-        routingNumberInput?.value.trim();
+        routingNumberInput?.value.trim() ?? '';
+
+      // Validation
+      if (
+        !accountHolder ||
+        !accountNumber ||
+        !routingNumber
+      ) {
+
+        this.onError(
+          "Please fill all required fields."
+        );
+
+        return;
+      }
 
       const requestData:
         PaymentRequestSchemaDTO = {
@@ -162,11 +175,16 @@ export class Ach extends BaseComponent {
           PaymentOutcome.AUTHORIZED,
 
         lang:
-          pathLocale ?? 'de',
+          pathLocale ?? 'en',
 
         path:
           baseSiteUrl,
       };
+
+      console.log(
+        'ACH Request:',
+        requestData
+      );
 
       const response = await fetch(
         this.processorUrl + "/directPayment",
@@ -206,20 +224,42 @@ export class Ach extends BaseComponent {
       const data =
         await response.json();
 
-      if (data.paymentReference) {
+      console.log(
+        'ACH Response:',
+        data
+      );
 
-        this.onComplete &&
-          this.onComplete({
-            isSuccess: true,
+      if (
+        data &&
+        data.paymentReference
+      ) {
 
-            paymentReference:
-              data.paymentReference,
-          });
+        const paymentReference =
+          typeof data.paymentReference === 'string'
+            ? data.paymentReference
+            : data.paymentReference.id;
+
+        console.log(
+          'Calling onComplete with:',
+          paymentReference
+        );
+
+        this.onComplete?.({
+          isSuccess: true,
+
+          paymentReference:
+            paymentReference,
+        });
 
       } else {
 
+        console.error(
+          'Missing paymentReference:',
+          data
+        );
+
         this.onError(
-          "Some error occurred. Please try again."
+          "Payment reference missing."
         );
       }
 
@@ -252,6 +292,7 @@ export class Ach extends BaseComponent {
         "
       >
 
+        <!-- Account Holder -->
         <div>
 
           <label for="achForm-accHolder">
@@ -266,6 +307,7 @@ export class Ach extends BaseComponent {
             type="text"
             id="achForm-accHolder"
             name="accHolder"
+
             style="
               width:100%;
               padding:12px;
@@ -275,6 +317,7 @@ export class Ach extends BaseComponent {
 
         </div>
 
+        <!-- Account Number -->
         <div>
 
           <label for="achForm-accountNumber">
@@ -289,6 +332,7 @@ export class Ach extends BaseComponent {
             type="text"
             id="achForm-accountNumber"
             name="accountNumber"
+
             style="
               width:100%;
               padding:12px;
@@ -298,6 +342,7 @@ export class Ach extends BaseComponent {
 
         </div>
 
+        <!-- Routing Number -->
         <div>
 
           <label for="achForm-routingNumber">
@@ -312,6 +357,7 @@ export class Ach extends BaseComponent {
             type="text"
             id="achForm-routingNumber"
             name="routingNumber"
+
             style="
               width:100%;
               padding:12px;
@@ -328,6 +374,7 @@ export class Ach extends BaseComponent {
               class="${buttonStyles.button}
               ${buttonStyles.fullWidth}
               ${styles.submitButton}"
+
               id="achForm-paymentButton"
             >
               ${

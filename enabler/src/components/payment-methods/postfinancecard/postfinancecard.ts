@@ -42,6 +42,8 @@ export class Postfinance
 
   private showPayButton: boolean;
 
+  private isSubmitting = false;
+
   constructor(
     baseOptions: BaseOptions,
     componentOptions: ComponentOptions
@@ -59,7 +61,7 @@ export class Postfinance
 
   mount(selector: string) {
 
-    // Escape selector safely
+    // FIX storefront selector issue
     const safeSelector =
       selector.replace(/\|/g, '\\|');
 
@@ -76,6 +78,15 @@ export class Postfinance
       return;
     }
 
+    // Prevent duplicate render
+    if (
+      document.getElementById(
+        "novalnet-postfinance-wrapper"
+      )
+    ) {
+      return;
+    }
+
     container.insertAdjacentHTML(
       "beforeend",
       this._getTemplate()
@@ -85,18 +96,31 @@ export class Postfinance
 
       const button =
         document.querySelector(
-          "#purchaseOrderForm-paymentButton"
-        );
+          "#postfinance-paymentButton"
+        ) as HTMLButtonElement | null;
 
       if (button) {
 
         button.addEventListener(
           "click",
-          (e) => {
+          async (e) => {
 
             e.preventDefault();
 
-            this.submit();
+            // Prevent double click
+            if (this.isSubmitting) {
+              return;
+            }
+
+            this.isSubmitting = true;
+
+            button.disabled = true;
+
+            await this.submit();
+
+            button.disabled = false;
+
+            this.isSubmitting = false;
           }
         );
       }
@@ -175,8 +199,22 @@ export class Postfinance
       const data =
         await response.json();
 
-      window.location.href =
-        data.txnSecret;
+      if (data?.txnSecret) {
+
+        window.location.href =
+          data.txnSecret;
+
+      } else {
+
+        console.error(
+          'Missing redirect URL:',
+          data
+        );
+
+        this.onError(
+          "Redirect URL missing."
+        );
+      }
 
     } catch (e) {
 
@@ -201,28 +239,38 @@ export class Postfinance
         ? "Bezahlen Sie bequem mit PostFinance Card."
         : "Pay easily with PostFinance Card.";
 
-    return this.showPayButton
-      ? `
-      <div class="${styles.wrapper}">
+    return `
+      <div
+        id="novalnet-postfinance-wrapper"
+        class="${styles.wrapper}"
+      >
 
         <p>
           ${description}
         </p>
 
-        <button
-          class="${buttonStyles.button}
-          ${buttonStyles.fullWidth}
-          ${styles.submitButton}"
+        ${
+          this.showPayButton
+            ? `
+            <button
+              class="${buttonStyles.button}
+              ${buttonStyles.fullWidth}
+              ${styles.submitButton}"
 
-          id="purchaseOrderForm-paymentButton"
-        >
-          ${locale.startsWith("de")
-            ? "Bezahlen"
-            : "Pay Now"}
-        </button>
+              id="postfinance-paymentButton"
+              type="button"
+            >
+              ${
+                locale.startsWith("de")
+                  ? "Bezahlen"
+                  : "Pay Now"
+              }
+            </button>
+            `
+            : ""
+        }
 
       </div>
-      `
-      : "";
+    `;
   }
 }
