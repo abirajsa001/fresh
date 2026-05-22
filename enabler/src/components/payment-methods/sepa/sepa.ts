@@ -41,6 +41,18 @@ export class Sepa extends BaseComponent {
     }
 
     container.insertAdjacentHTML("beforeend",this._getTemplate());
+
+        // Update storefront payment label
+        setTimeout(() => {
+          const labels = document.querySelectorAll('label');
+          labels.forEach((label) => {
+            const text = label.textContent?.trim().toLowerCase();
+            if (text?.includes('sepa')) {
+              label.textContent = 'Direct Debit SEPA';
+            }
+          });
+        }, 300);
+
     if (this.showPayButton) {
       const button = document.querySelector("#purchaseOrderForm-paymentButton");
       if (button) {
