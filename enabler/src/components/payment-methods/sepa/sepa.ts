@@ -57,8 +57,8 @@ export class Sepa extends BaseComponent {
       const labels = document.querySelectorAll('label');
       labels.forEach((label) => {
         const text = label.textContent?.trim().toLowerCase();
-        if (text?.includes('ideal')) {
-          label.textContent = 'iDEAL | Wero';
+        if (text?.includes('sepa')) {
+          label.textContent = 'Direct Debit SEPA';
         }
       });
     }, 300);
