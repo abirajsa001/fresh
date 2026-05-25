@@ -17,23 +17,15 @@ import {
 
 import { BaseOptions } from "../../../payment-enabler/novalnet-payment-enabler";
 
-export class SepaBuilder
-  implements PaymentComponentBuilder {
+export class SepaBuilder implements PaymentComponentBuilder {
 
   public componentHasSubmit = true;
 
-  constructor(
-    private baseOptions: BaseOptions
-  ) {}
+  constructor(private baseOptions: BaseOptions) {}
 
-  build(
-    config: ComponentOptions
-  ): PaymentComponent {
+  build(config: ComponentOptions): PaymentComponent {
 
-    return new Sepa(
-      this.baseOptions,
-      config
-    );
+    return new Sepa(this.baseOptions, config);
   }
 }
 
@@ -46,6 +38,9 @@ export class Sepa extends BaseComponent {
     componentOptions: ComponentOptions
   ) {
 
+    /**
+     * Keep internal payment key as "sepa"
+     */
     super(
       PaymentMethod.sepa,
       baseOptions,
@@ -56,49 +51,70 @@ export class Sepa extends BaseComponent {
       componentOptions?.showPayButton ?? false;
   }
 
-  mount(selector: string) {
+  async mount(selector: string) {
 
-    // Fix invalid selector issue
+    /**
+     * Escape selector safely
+     */
     const safeSelector =
       selector.replace(/\|/g, '\\|');
 
     const container =
-      document.querySelector(
-        safeSelector
-      ) as HTMLElement | null;
+      document.querySelector(safeSelector);
 
     if (!container) {
 
       console.error(
-        'SEPA container not found:',
+        'Container not found:',
         safeSelector
       );
 
       return;
     }
 
-    // Prevent duplicate rendering
-    const existingForm =
-      document.getElementById(
-        'nn_sepa_form'
-      );
+    /**
+     * Load Novalnet utility script
+     */
+    await this.loadNovalnetScript();
 
-    if (existingForm) {
-      return;
-    }
+    /**
+     * Render component
+     */
+    container.innerHTML =
+      this._getTemplate();
 
-    container.insertAdjacentHTML(
-      "beforeend",
-      this._getTemplate()
-    );
+    /**
+     * Change storefront payment label
+     */
+    setTimeout(() => {
 
-    this._loadNovalnetScript();
+      const labels =
+        document.querySelectorAll('label');
 
+      labels.forEach((label) => {
+
+        const text =
+          label.textContent
+            ?.trim()
+            .toLowerCase();
+
+        if (text?.includes('sepa')) {
+
+          label.textContent =
+            'Direct Debit SEPA';
+        }
+      });
+
+    }, 300);
+
+    /**
+     * Attach button event
+     */
     if (this.showPayButton) {
 
       const button =
-        document.getElementById(
-          "purchaseOrderForm-paymentButton"
+        document.querySelector(
+          "#sepa-payment-button"
         );
 
       if (button) {
@@ -116,8 +132,57 @@ export class Sepa extends BaseComponent {
     }
   }
 
+  /**
+   * Load NovalnetUtility.js
+   */
+  private async loadNovalnetScript(): Promise<void> {
+
+    return new Promise((resolve) => {
+
+      /**
+       * Already loaded
+       */
+      if (
+        (window as any).NovalnetUtility
+      ) {
+
+        resolve();
+
+        return;
+      }
+
+      const script =
+        document.createElement('script');
+
+      script.src =
+        'https://cdn.novalnet.de/js/v2/NovalnetUtility.js';
+
+      script.type =
+        'text/javascript';
+
+      script.onload = () => {
+
+        resolve();
+      };
+
+      script.onerror = () => {
+
+        console.error(
+          'Failed to load NovalnetUtility.js'
+        );
+
+        resolve();
+      };
+
+      document.head.appendChild(script);
+    });
+  }
+
   async submit() {
 
+    /**
+     * Init SDK
+     */
     this.sdk.init({
       environment: this.environment
     });
@@ -127,15 +192,16 @@ export class Sepa extends BaseComponent {
         .split("/")[1];
 
     const url =
-      new URL(
-        window.location.href
-      );
+      new URL(window.location.href);
 
     const baseSiteUrl =
       url.origin;
 
     try {
 
+      /**
+       * Get form values
+       */
       const accountHolderInput =
         document.getElementById(
           'nn_account_holder'
@@ -163,11 +229,13 @@ export class Sepa extends BaseComponent {
         bicInput?.value
           ?.trim() ?? '';
 
-      // Validation
+      /**
+       * Validation
+       */
       if (!accountHolder) {
 
         this.onError(
-          "Account holder is required."
+          "Please enter account holder name"
         );
 
         return;
@@ -176,19 +244,21 @@ export class Sepa extends BaseComponent {
       if (!iban) {
 
         this.onError(
-          "IBAN is required."
+          "Please enter IBAN"
         );
 
         return;
       }
 
+      /**
+       * Request payload
+       */
       const requestData:
         PaymentRequestSchemaDTO = {
 
         paymentMethod: {
 
-          type:
-            "DIRECT_DEBIT_SEPA",
+          type: "DIRECT_DEBIT_SEPA",
 
           accHolder:
             accountHolder,
@@ -197,7 +267,7 @@ export class Sepa extends BaseComponent {
             iban,
 
           bic:
-            bic || "",
+            bic,
         },
 
         paymentOutcome:
@@ -210,11 +280,9 @@ export class Sepa extends BaseComponent {
           baseSiteUrl,
       };
 
-      console.log(
-        'SEPA REQUEST:',
-        requestData
-      );
-
+      /**
+       * API call
+       */
       const response =
         await fetch(
           this.processorUrl +
@@ -239,77 +307,67 @@ export class Sepa extends BaseComponent {
           }
         );
 
+      /**
+       * HTTP validation
+       */
       if (!response.ok) {
 
         const errorText =
           await response.text();
 
         console.error(
-          'SEPA HTTP ERROR:',
+          'HTTP error response:',
           errorText
         );
 
-        this.onError(
-          errorText ||
-          "Payment failed."
+        throw new Error(
+          `HTTP error! status: ${response.status}`
         );
-
-        return;
       }
 
       const data =
         await response.json();
 
       console.log(
-        'SEPA RESPONSE:',
+        'SEPA payment response:',
         data
       );
 
+      /**
+       * Success callback
+       */
       if (
-        data &&
         data.paymentReference
       ) {
 
-        const paymentReference =
-          typeof data.paymentReference === 'string'
-            ? data.paymentReference
-            : data.paymentReference.id;
+        this.onComplete &&
+          this.onComplete({
 
-        if (!paymentReference) {
+            isSuccess: true,
 
-          this.onError(
-            "Payment reference missing."
-          );
-
-          return;
-        }
-
-        this.onComplete?.({
-
-          isSuccess: true,
-
-          paymentReference:
-            paymentReference,
-        });
+            paymentReference:
+              data.paymentReference,
+          });
 
       } else {
 
-        console.error(
-          'SEPA PAYMENT FAILED:',
-          data
-        );
-
         this.onError(
-          data?.message ||
-          "Payment failed."
+          "Some error occurred. Please try again."
         );
       }
 
-    } catch (e) {
+    } catch (e: any) {
 
       console.error(
-        'SEPA PAYMENT ERROR:',
-        e
+        'SEPA submit error:',
+        {
+
+          message:
+            e?.message,
+
+          stack:
+            e?.stack,
+        }
       );
 
       this.onError(
@@ -318,46 +376,44 @@ export class Sepa extends BaseComponent {
     }
   }
 
-  private _loadNovalnetScript() {
-
-    if (
-      (window as any)
-        .NovalnetUtility
-    ) {
-      return;
-    }
-
-    const existingScript =
-      document.querySelector(
-        'script[src="https://cdn.novalnet.de/js/v2/NovalnetUtility.js"]'
-      );
-
-    if (existingScript) {
-      return;
-    }
-
-    const script =
-      document.createElement(
-        'script'
-      );
-
-    script.src =
-      'https://cdn.novalnet.de/js/v2/NovalnetUtility.js';
-
-    script.async = true;
-
-    document.body.appendChild(
-      script
-    );
-  }
-
   private _getTemplate() {
 
-    const locale =
-      document.documentElement.lang || "en";
+    const payButton =
+      this.showPayButton
+        ? `
+          <button
+            class="
+              ${buttonStyles.button}
+              ${buttonStyles.fullWidth}
+              ${styles.submitButton}
+            "
+
+            id="sepa-payment-button"
+
+            type="button"
+          >
+            Pay Now
+          </button>
+        `
+        : "";
 
     return `
-      <div class="${styles.wrapper}">
+
+      <div
+        class="${styles.wrapper}"
+
+        style="
+          width:100%;
+          display:flex;
+          flex-direction:column;
+          gap:20px;
+        "
+      >
+
+        <p>
+          Pay conveniently using
+          Direct Debit SEPA.
+        </p>
 
         <form
           id="nn_sepa_form"
@@ -381,13 +437,16 @@ export class Sepa extends BaseComponent {
 
             <label
               for="nn_account_holder"
+
+              style="
+                font-size:14px;
+                font-weight:600;
+                color:#333;
+                margin-bottom:6px;
+              "
             >
-              ${
-                locale.startsWith("de")
-                  ? "Kontoinhaber"
-                  : "Account Holder"
-              }
-              *
+              Account Holder
+              <span style="color:red;">*</span>
             </label>
 
             <input
@@ -397,13 +456,15 @@ export class Sepa extends BaseComponent {
 
               name="nn_account_holder"
 
+              autocomplete="off"
+
               style="
-                width:100%;
-                padding:12px;
-                margin-top:6px;
+                padding:12px 14px;
+                border:1px solid #d4d4d4;
+                border-radius:6px;
+                font-size:15px;
               "
             />
-
           </div>
 
           <!-- IBAN -->
@@ -417,8 +478,16 @@ export class Sepa extends BaseComponent {
 
             <label
               for="nn_sepa_account_no"
+
+              style="
+                font-size:14px;
+                font-weight:600;
+                color:#333;
+                margin-bottom:6px;
+              "
             >
-              IBAN *
+              IBAN
+              <span style="color:red;">*</span>
             </label>
 
             <input
@@ -431,40 +500,34 @@ export class Sepa extends BaseComponent {
               autocomplete="off"
 
               onkeypress="
-                return window.NovalnetUtility
-                  ? NovalnetUtility.checkIban(
-                      event,
-                      'bic_div'
-                    )
-                  : true;
+                return NovalnetUtility.checkIban(
+                  event,
+                  'bic_div'
+                );
               "
 
               onkeyup="
-                return window.NovalnetUtility
-                  ? NovalnetUtility.formatIban(
-                      event,
-                      'bic_div'
-                    )
-                  : true;
+                return NovalnetUtility.formatIban(
+                  event,
+                  'bic_div'
+                );
               "
 
               onchange="
-                return window.NovalnetUtility
-                  ? NovalnetUtility.formatIban(
-                      event,
-                      'bic_div'
-                    )
-                  : true;
+                return NovalnetUtility.formatIban(
+                  event,
+                  'bic_div'
+                );
               "
 
               style="
-                width:100%;
-                padding:12px;
-                margin-top:6px;
+                padding:12px 14px;
+                border:1px solid #d4d4d4;
+                border-radius:6px;
+                font-size:15px;
                 text-transform:uppercase;
               "
             />
-
           </div>
 
           <!-- BIC -->
@@ -480,8 +543,16 @@ export class Sepa extends BaseComponent {
 
             <label
               for="nn_sepa_bic"
+
+              style="
+                font-size:14px;
+                font-weight:600;
+                color:#333;
+                margin-bottom:6px;
+              "
             >
               BIC
+              <span style="color:red;">*</span>
             </label>
 
             <input
@@ -494,51 +565,27 @@ export class Sepa extends BaseComponent {
               autocomplete="off"
 
               onkeypress="
-                return window.NovalnetUtility
-                  ? NovalnetUtility.formatBic(
-                      event
-                    )
-                  : true;
+                return NovalnetUtility.formatBic(
+                  event
+                );
               "
 
               onchange="
-                return window.NovalnetUtility
-                  ? NovalnetUtility.formatBic(
-                      event
-                    )
-                  : true;
+                return NovalnetUtility.formatBic(
+                  event
+                );
               "
 
               style="
-                width:100%;
-                padding:12px;
-                margin-top:6px;
+                padding:12px 14px;
+                border:1px solid #d4d4d4;
+                border-radius:6px;
+                font-size:15px;
               "
             />
-
           </div>
 
-          ${
-            this.showPayButton
-              ? `
-              <button
-                class="${buttonStyles.button}
-                ${buttonStyles.fullWidth}
-                ${styles.submitButton}"
-
-                id="purchaseOrderForm-paymentButton"
-
-                type="button"
-              >
-                ${
-                  locale.startsWith("de")
-                    ? "Bezahlen"
-                    : "Pay"
-                }
-              </button>
-              `
-              : ""
-          }
+          ${payButton}
 
         </form>
 
