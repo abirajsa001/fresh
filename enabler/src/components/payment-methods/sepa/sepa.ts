@@ -17,15 +17,23 @@ import {
 
 import { BaseOptions } from "../../../payment-enabler/novalnet-payment-enabler";
 
-export class SepaBuilder implements PaymentComponentBuilder {
+export class SepaBuilder
+  implements PaymentComponentBuilder {
 
   public componentHasSubmit = true;
 
-  constructor(private baseOptions: BaseOptions) {}
+  constructor(
+    private baseOptions: BaseOptions
+  ) {}
 
-  build(config: ComponentOptions): PaymentComponent {
+  build(
+    config: ComponentOptions
+  ): PaymentComponent {
 
-    return new Sepa(this.baseOptions, config);
+    return new Sepa(
+      this.baseOptions,
+      config
+    );
   }
 }
 
@@ -39,10 +47,11 @@ export class Sepa extends BaseComponent {
   ) {
 
     /**
-     * Keep internal payment key as "sepa"
+     * IMPORTANT:
+     * Use exact commercetools payment name
      */
     super(
-      PaymentMethod.sepa,
+      'Direct Debit SEPA' as PaymentMethod,
       baseOptions,
       componentOptions
     );
@@ -51,16 +60,20 @@ export class Sepa extends BaseComponent {
       componentOptions?.showPayButton ?? false;
   }
 
-  async mount(selector: string) {
+  mount(selector: string) {
 
     /**
-     * Escape selector safely
+     * Fix selector escaping
      */
     const safeSelector =
-      selector.replace(/\|/g, '\\|');
+      '#' + CSS.escape(
+        selector.substring(1)
+      );
 
     const container =
-      document.querySelector(safeSelector);
+      document.querySelector(
+        safeSelector
+      );
 
     if (!container) {
 
@@ -73,42 +86,28 @@ export class Sepa extends BaseComponent {
     }
 
     /**
-     * Load Novalnet utility script
+     * Prevent duplicate rendering
      */
-    await this.loadNovalnetScript();
+    const existingForm =
+      container.querySelector(
+        '#nn_sepa_wrapper'
+      );
+
+    if (existingForm) {
+      return;
+    }
 
     /**
-     * Render component
+     * Append template
+     * DO NOT use innerHTML
      */
-    container.innerHTML =
-      this._getTemplate();
+    container.insertAdjacentHTML(
+      "beforeend",
+      this._getTemplate()
+    );
 
     /**
-     * Change storefront payment label
-     */
-    setTimeout(() => {
-
-      const labels =
-        document.querySelectorAll('label');
-
-      labels.forEach((label) => {
-
-        const text =
-          label.textContent
-            ?.trim()
-            .toLowerCase();
-
-        if (text?.includes('sepa')) {
-
-          label.textContent =
-            'Direct Debit SEPA';
-        }
-      });
-
-    }, 300);
-
-    /**
-     * Attach button event
+     * Bind button
      */
     if (this.showPayButton) {
 
@@ -121,61 +120,15 @@ export class Sepa extends BaseComponent {
 
         button.addEventListener(
           "click",
-          async (e) => {
+          (e) => {
 
             e.preventDefault();
 
-            await this.submit();
+            this.submit();
           }
         );
       }
     }
-  }
-
-  /**
-   * Load NovalnetUtility.js
-   */
-  private async loadNovalnetScript(): Promise<void> {
-
-    return new Promise((resolve) => {
-
-      /**
-       * Already loaded
-       */
-      if (
-        (window as any).NovalnetUtility
-      ) {
-
-        resolve();
-
-        return;
-      }
-
-      const script =
-        document.createElement('script');
-
-      script.src =
-        'https://cdn.novalnet.de/js/v2/NovalnetUtility.js';
-
-      script.type =
-        'text/javascript';
-
-      script.onload = () => {
-
-        resolve();
-      };
-
-      script.onerror = () => {
-
-        console.error(
-          'Failed to load NovalnetUtility.js'
-        );
-
-        resolve();
-      };
-
-      document.head.appendChild(script);
-    });
   }
 
   async submit() {
@@ -184,7 +137,8 @@ export class Sepa extends BaseComponent {
      * Init SDK
      */
     this.sdk.init({
-      environment: this.environment
+      environment:
+        this.environment
     });
 
     const pathLocale =
@@ -200,7 +154,7 @@ export class Sepa extends BaseComponent {
     try {
 
       /**
-       * Get form values
+       * Form values
        */
       const accountHolderInput =
         document.getElementById(
@@ -235,7 +189,7 @@ export class Sepa extends BaseComponent {
       if (!accountHolder) {
 
         this.onError(
-          "Please enter account holder name"
+          "Please enter account holder"
         );
 
         return;
@@ -258,7 +212,8 @@ export class Sepa extends BaseComponent {
 
         paymentMethod: {
 
-          type: "DIRECT_DEBIT_SEPA",
+          type:
+            "DIRECT_DEBIT_SEPA",
 
           accHolder:
             accountHolder,
@@ -281,7 +236,7 @@ export class Sepa extends BaseComponent {
       };
 
       /**
-       * API call
+       * API request
        */
       const response =
         await fetch(
@@ -308,7 +263,7 @@ export class Sepa extends BaseComponent {
         );
 
       /**
-       * HTTP validation
+       * Response validation
        */
       if (!response.ok) {
 
@@ -334,7 +289,7 @@ export class Sepa extends BaseComponent {
       );
 
       /**
-       * Success callback
+       * Success
        */
       if (
         data.paymentReference
@@ -361,12 +316,8 @@ export class Sepa extends BaseComponent {
       console.error(
         'SEPA submit error:',
         {
-
-          message:
-            e?.message,
-
-          stack:
-            e?.stack,
+          message: e?.message,
+          stack: e?.stack,
         }
       );
 
@@ -400,6 +351,8 @@ export class Sepa extends BaseComponent {
     return `
 
       <div
+        id="nn_sepa_wrapper"
+
         class="${styles.wrapper}"
 
         style="
@@ -407,6 +360,7 @@ export class Sepa extends BaseComponent {
           display:flex;
           flex-direction:column;
           gap:20px;
+          margin-top:20px;
         "
       >
 
@@ -415,179 +369,119 @@ export class Sepa extends BaseComponent {
           Direct Debit SEPA.
         </p>
 
-        <form
-          id="nn_sepa_form"
-
+        <!-- Account Holder -->
+        <div
           style="
-            width:100%;
             display:flex;
             flex-direction:column;
-            gap:20px;
+            gap:6px;
           "
         >
 
-          <!-- Account Holder -->
-          <div
-            style="
-              display:flex;
-              flex-direction:column;
-              width:100%;
-            "
+          <label
+            for="nn_account_holder"
           >
+            Account Holder
+            <span style="color:red;">
+              *
+            </span>
+          </label>
 
-            <label
-              for="nn_account_holder"
+          <input
+            type="text"
 
-              style="
-                font-size:14px;
-                font-weight:600;
-                color:#333;
-                margin-bottom:6px;
-              "
-            >
-              Account Holder
-              <span style="color:red;">*</span>
-            </label>
+            id="nn_account_holder"
 
-            <input
-              type="text"
+            name="nn_account_holder"
 
-              id="nn_account_holder"
-
-              name="nn_account_holder"
-
-              autocomplete="off"
-
-              style="
-                padding:12px 14px;
-                border:1px solid #d4d4d4;
-                border-radius:6px;
-                font-size:15px;
-              "
-            />
-          </div>
-
-          <!-- IBAN -->
-          <div
-            style="
-              display:flex;
-              flex-direction:column;
-              width:100%;
-            "
-          >
-
-            <label
-              for="nn_sepa_account_no"
-
-              style="
-                font-size:14px;
-                font-weight:600;
-                color:#333;
-                margin-bottom:6px;
-              "
-            >
-              IBAN
-              <span style="color:red;">*</span>
-            </label>
-
-            <input
-              type="text"
-
-              id="nn_sepa_account_no"
-
-              name="nn_sepa_account_no"
-
-              autocomplete="off"
-
-              onkeypress="
-                return NovalnetUtility.checkIban(
-                  event,
-                  'bic_div'
-                );
-              "
-
-              onkeyup="
-                return NovalnetUtility.formatIban(
-                  event,
-                  'bic_div'
-                );
-              "
-
-              onchange="
-                return NovalnetUtility.formatIban(
-                  event,
-                  'bic_div'
-                );
-              "
-
-              style="
-                padding:12px 14px;
-                border:1px solid #d4d4d4;
-                border-radius:6px;
-                font-size:15px;
-                text-transform:uppercase;
-              "
-            />
-          </div>
-
-          <!-- BIC -->
-          <div
-            id="bic_div"
+            autocomplete="off"
 
             style="
-              display:none;
-              flex-direction:column;
               width:100%;
+              padding:12px;
+              border:1px solid #d4d4d4;
+              border-radius:6px;
+              font-size:15px;
             "
+          />
+
+        </div>
+
+        <!-- IBAN -->
+        <div
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+          "
+        >
+
+          <label
+            for="nn_sepa_account_no"
           >
+            IBAN
+            <span style="color:red;">
+              *
+            </span>
+          </label>
 
-            <label
-              for="nn_sepa_bic"
+          <input
+            type="text"
 
-              style="
-                font-size:14px;
-                font-weight:600;
-                color:#333;
-                margin-bottom:6px;
-              "
-            >
-              BIC
-              <span style="color:red;">*</span>
-            </label>
+            id="nn_sepa_account_no"
 
-            <input
-              type="text"
+            name="nn_sepa_account_no"
 
-              id="nn_sepa_bic"
+            autocomplete="off"
 
-              name="nn_sepa_bic"
+            style="
+              width:100%;
+              padding:12px;
+              border:1px solid #d4d4d4;
+              border-radius:6px;
+              font-size:15px;
+              text-transform:uppercase;
+            "
+          />
 
-              autocomplete="off"
+        </div>
 
-              onkeypress="
-                return NovalnetUtility.formatBic(
-                  event
-                );
-              "
+        <!-- BIC -->
+        <div
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+          "
+        >
 
-              onchange="
-                return NovalnetUtility.formatBic(
-                  event
-                );
-              "
+          <label
+            for="nn_sepa_bic"
+          >
+            BIC
+          </label>
 
-              style="
-                padding:12px 14px;
-                border:1px solid #d4d4d4;
-                border-radius:6px;
-                font-size:15px;
-              "
-            />
-          </div>
+          <input
+            type="text"
 
-          ${payButton}
+            id="nn_sepa_bic"
 
-        </form>
+            name="nn_sepa_bic"
+
+            autocomplete="off"
+
+            style="
+              width:100%;
+              padding:12px;
+              border:1px solid #d4d4d4;
+              border-radius:6px;
+              font-size:15px;
+            "
+          />
+
+        </div>
+
+        ${payButton}
 
       </div>
     `;
