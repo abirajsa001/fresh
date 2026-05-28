@@ -60,7 +60,7 @@ import {
        * Prevent radio button removal
        */
       container.insertAdjacentHTML(
-        "afterbegin",
+        "beforeend",
         this._getTemplate()
       );
   

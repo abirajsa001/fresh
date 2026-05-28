@@ -86,7 +86,7 @@ export class Sepa extends BaseComponent {
      * Prevent radio button removal
      */
     container.insertAdjacentHTML(
-      "afterbegin",
+      "beforeend",
       this._getTemplate()
     );
 
