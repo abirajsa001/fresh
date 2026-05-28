@@ -63,24 +63,20 @@ export const paymentRoutes = async (
               data: request.body,
             });
   
-        /**
-         * IMPORTANT:
-         * Never redirect fetch() API calls
-         */
-        if (
-          resp?.transactionStatus === 'FAILURE'
-        ) {
-  
-          return reply
-            .status(400)
-            .send({
-              paymentReference: '',
-              transactionStatus: 'FAILURE',
-              message:
-                resp?.message ||
-                'Payment failed',
-            } as any);
-        }
+            if (
+              resp?.transactionStatus === 'FAILURE'
+            ) {
+            
+              return reply
+                .status(400)
+                .send({
+                  paymentReference: '',
+                  transactionStatus: 'FAILURE',
+                  message:
+                    resp?.transactionStatusText ||
+                    'Payment failed',
+                } as any);
+            }
   
         return reply
           .status(200)
