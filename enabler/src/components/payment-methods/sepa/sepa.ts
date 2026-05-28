@@ -274,17 +274,15 @@ export class Sepa extends BaseComponent {
        */
       if (!response.ok) {
 
-        const errorText =
-          await response.text();
-
-        console.error(
-          'HTTP error response:',
-          errorText
+        const errorData =
+          await response.json();
+      
+        this.onError(
+          errorData?.message ||
+          "Payment failed"
         );
-
-        throw new Error(
-          `HTTP error! status: ${response.status}`
-        );
+      
+        return;
       }
 
       const data =

@@ -40,23 +40,68 @@ export const paymentRoutes = async (
   }>(
     "/directPayment",
     {
-      preHandler: [opts.sessionHeaderAuthHook.authenticate()],
+      preHandler: [
+        opts.sessionHeaderAuthHook.authenticate()
+      ],
+  
       schema: {
         body: PaymentRequestSchema,
+  
         response: {
           200: PaymentResponseSchema,
         },
       },
     },
+  
     async (request, reply) => {
-      const resp = await opts.paymentService.createDirectPayment({
-        data: request.body,
-      });
-      if(resp?.transactionStatus == 'FAILURE') {
-        const baseUrl = request.body.path + "/checkout";
-        return reply.code(302).redirect(baseUrl);
+  
+      try {
+  
+        const resp =
+          await opts.paymentService
+            .createDirectPayment({
+              data: request.body,
+            });
+  
+        /**
+         * IMPORTANT:
+         * Never redirect fetch() API calls
+         */
+        if (
+          resp?.transactionStatus === 'FAILURE'
+        ) {
+  
+          return reply
+            .status(400)
+            .send({
+              paymentReference: '',
+              transactionStatus: 'FAILURE',
+              message:
+                resp?.message ||
+                'Payment failed',
+            } as any);
+        }
+  
+        return reply
+          .status(200)
+          .send(resp);
+  
+      } catch (error) {
+  
+        log.error(
+          "directPayment error:",
+          error
+        );
+  
+        return reply
+          .status(500)
+          .send({
+            paymentReference: '',
+            transactionStatus: 'FAILURE',
+            message:
+              'Internal server error',
+          } as any);
       }
-      return reply.status(200).send(resp);
     },
   );
 

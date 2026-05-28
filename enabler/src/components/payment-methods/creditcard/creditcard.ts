@@ -505,7 +505,7 @@ export class Creditcard extends BaseComponent {
             label: "Card holder name",
             place_holder: "Name on card",
           },
-
+ 
           card_number: {
             label: "Card number",
             place_holder:
